@@ -4,14 +4,17 @@ namespace App;
 
 class Status
 {
+    protected string $origin;
     protected string $id;
     protected string $language;
     protected string $content;
     protected \DateTime $published;
+    protected ?string $cw = null;
     /** @var Tag[] */
     protected array $tags = [];
     /** @var Attachment[] */
     protected array $attachments = [];
+    protected Thread $thread;
 
     protected Config $config;
 
@@ -21,6 +24,7 @@ class Status
         $this->config = $config;
 
         // main status handling
+        $this->origin = $data['object']['id'];
         $this->published = new \DateTime($data['object']['published']);
         $this->id = $this->config->getUlid()->generate($this->published->getTimestamp() * 1000);
         if ($data['object']['contentMap'] ?? false) {
@@ -29,6 +33,13 @@ class Status
         } else {
             $this->language = 'en';
             $this->content = $data['object']['content'];
+        }
+
+        $this->thread = Thread::getInstance($this, $data['object']['inReplyTo'] ?? null);
+
+        // content warning
+        if ($data['object']['sensitive'] ?? false) {
+            $this->cw = $data['object']['summary'] ?? 'cw';
         }
 
         // tags
@@ -58,6 +69,8 @@ class Status
             $tags[] = $tag->getId();
         }
 
+        $this->thread->save();
+
         $record = [
             'id' => $this->id,
             'created_at' => $this->published->format('c'),
@@ -77,9 +90,9 @@ class Status
             'in_reply_to_account_id' => null,
             'boost_of_id' => null,
             'boost_of_account_id' => null,
-            'content_warning' => null, // FIXME needs to be set from export
+            'content_warning' => $this->cw,
             'visibility' => 'public',
-            'sensitive' => 0, // FIXME what is this?
+            'sensitive' => $this->cw ? 1 : 0,
             'language' => $this->language,
             'created_with_application_id' => null, // FIXME do we need it? Should we add the importer as an application?
             'activity_streams_type' => 'Note',
@@ -88,7 +101,7 @@ class Status
             'pinned_at' => null,
             'fetched_at' => null,
             'poll_id' => null,
-            'thread_id' => null, // FIXME we need to create threads
+            'thread_id' => $this->thread->getId(),
             'interaction_policy' => null, // we might want to block interactions on imported statuses
             'pending_approval' => 0,
             'approved_by_uri' => null,
@@ -101,6 +114,11 @@ class Status
     public function getConfig(): Config
     {
         return $this->config;
+    }
+
+    public function getOrigin(): string
+    {
+        return $this->origin;
     }
 
     public function getId(): string

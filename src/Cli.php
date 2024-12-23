@@ -15,6 +15,8 @@ class Cli extends PSR3CLIv3
         $options->registerArgument('mastodondir', 'The directory with the Mastodon export, has the outbox.json file');
         $options->registerArgument('instancedir', 'The storage directory for the instance, has the sqlite database and media files');
         $options->registerArgument('account', 'The account to import into');
+
+        $options->registerOption('really', 'Actually do the import, without this option only a dryrun is done');
     }
 
     protected function main(Options $options)
@@ -23,11 +25,30 @@ class Cli extends PSR3CLIv3
             $options->getArgs()[0],
             $options->getArgs()[1],
             $options->getArgs()[2],
-            $this
+            $this,
+            !$options->getOpt('really')
         );
 
-        $importer = new Importer($config);
-        $importer->import();
+        if ($config->isDryrun()) {
+            $this->success('Dryrun only, no changes will be made');
+        } else {
+            $config->getDatabase()->beginTransaction();
+        }
+
+        try {
+            $importer = new Importer($config);
+            $importer->import();
+            if (!$config->isDryrun()) {
+                $config->getDatabase()->commit();
+            }
+        } catch (\Exception $e) {
+            $this->error($e->getMessage());
+            if (!$config->isDryrun()) {
+                $config->getDatabase()->rollBack();
+            }
+            return 1;
+        }
+        return 0;
     }
 
 }

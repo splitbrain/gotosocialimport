@@ -18,12 +18,20 @@ class Config
     protected string $instance;
     protected LoggerInterface $logger;
     protected Ulid $ulid;
+    protected bool $dryrun = true;
 
 
-    public function __construct(string $mastodonDir, string $instanceDir, string $account, LoggerInterface $logger)
+    public function __construct(
+        string          $mastodonDir,
+        string          $instanceDir,
+        string          $account,
+        LoggerInterface $logger,
+        bool            $dryrun = true
+    )
     {
         $this->ulid = new Ulid();
         $this->logger = $logger;
+        $this->dryrun = $dryrun;
 
         $this->initInstanceDir($instanceDir);
         $this->initMastodonDir($mastodonDir);
@@ -38,6 +46,11 @@ class Config
                 'instance' => $this->instance
             ]
         );
+    }
+
+    public function isDryrun(): bool
+    {
+        return $this->dryrun;
     }
 
     public function getDatabase(): Database
@@ -98,7 +111,7 @@ class Config
             throw new \Exception('Database not found in directory');
         }
 
-        $this->database = new Database($dir . '/sqlite.db', $this->logger);
+        $this->database = new Database($dir . '/sqlite.db', $this->logger, $this->dryrun);
         $this->instanceDir = $dir;
     }
 

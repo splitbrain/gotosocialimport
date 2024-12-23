@@ -50,54 +50,58 @@ class Attachment
 
     public function save()
     {
+        $this->copyFiles();
 
         $record = [
             'id' => $this->id,
             'created_at' => $this->parent->getPublished()->format('c'),
             'updated_at' => $this->parent->getPublished()->format('c'),
             'status_id' => $this->parent->getId(),
-//            'url' => ,
+            'url' => $this->newUrl('original'),
             'remote_url' => null,
             'account_id' => $this->parent->getConfig()->getUserid(),
             'description' => $this->description,
             'scheduled_status_id' => null,
             'blurhash' => $this->blurhash,
-            'processing' => 2, // FIXME what does this mean?
+            'processing' => $this->thumbFile ? 2 : 0, // 2 = processed, 0 = not processed, no thumbnail available
             'avatar' => 0,
             'header' => 0,
             'cached' => 1,
             'original_width' => $this->width,
             'original_height' => $this->height,
-            'original_size' => filesize($this->localFile),
+            'original_size' => $this->width * $this->height, // pixels
             'original_aspect' => $this->aspect,
             'small_width' => $this->thumbWidth,
             'small_height' => $this->thumbHeight,
-            'small_size' => $this->thumbFile ? filesize($this->thumbFile) : 0,
+            'small_size' => $this->thumbWidth * $this->thumbHeight, // pixels
             'small_aspect' => $this->aspect,
             'focus_x' => $this->focus_x,
             'focus_y' => $this->focus_y,
-//            'file_path' => ,
+            'file_path' => $this->newPath('original'),
             'file_content_type' => $this->content_type,
             'file_file_size' => filesize($this->localFile),
-//            'thumbnail_path' => ,
+            'thumbnail_path' => $this->thumbFile ? $this->newPath('small') : null,
             'thumbnail_content_type' => $this->content_type,
-//            'thumbnail_file_size' => ,
-//            'thumbnail_url' => ,
-//            'thumbnail_remote_url' => ,
-//            'original_duration' => ,
-//            'original_framerate' => ,
-//            'original_bitrate' => ,
-            'type' => 1, // FIXME what does this mean?
+            'thumbnail_file_size' => $this->thumbFile ? filesize($this->thumbFile) : 0,
+            'thumbnail_url' => $this->thumbFile ? $this->newUrl('small') : null,
+            'thumbnail_remote_url' => null,
+            'original_duration' => 0, // FIXME we currently only support images
+            'original_framerate' => 0, // FIXME we currently only support images
+            'original_bitrate' => 0, // FIXME we currently only support images
+            'type' => $this->gtsFileType(),
         ];
 
         $this->parent->getConfig()->getDatabase()->saveRecord('media_attachments', $record);
     }
 
 
-    protected function readImageInfo($data)
+    protected function readImageInfo(array $data): void
     {
         try {
             [$width, $height, $type] = getimagesize($this->localFile);
+            if (!$width || !$height) {
+                throw new \Exception('Could not read image size');
+            }
             $this->width = $width;
             $this->height = $height;
             $this->content_type = image_type_to_mime_type($type);
@@ -113,7 +117,7 @@ class Attachment
         }
     }
 
-    protected function createThumbnail()
+    protected function createThumbnail(): void
     {
         try {
             if (!file_exists($this->localFile . '.thumb')) {
@@ -125,6 +129,9 @@ class Attachment
         if (file_exists($this->localFile . '.thumb')) {
             $this->thumbFile = $this->localFile . '.thumb';
             [$this->thumbWidth, $this->thumbHeight] = getimagesize($this->thumbFile);
+            if (!$this->thumbWidth || !$this->thumbHeight) {
+                $this->thumbFile = null; // invalid thumb
+            }
         } else {
             $this->thumbFile = null;
             $this->thumbWidth = null;
@@ -133,7 +140,7 @@ class Attachment
 
     }
 
-    protected function extension()
+    protected function extension(): string
     {
         switch ($this->content_type) {
             case 'image/jpeg':
@@ -151,36 +158,65 @@ class Attachment
         }
     }
 
-    protected function blurhash(): string
+    /**
+     * Theoretically there's also type 4 for short videos, but we don't support that
+     */
+    protected function gtsFileType(): int
     {
-        $image = imagecreatefromstring(file_get_contents($this->localFile));
-        $width = imagesx($image);
-        $height = imagesy($image);
-
-        $pixels = [];
-        for ($y = 0; $y < $height; ++$y) {
-            $row = [];
-            for ($x = 0; $x < $width; ++$x) {
-                $index = imagecolorat($image, $x, $y);
-                $colors = imagecolorsforindex($image, $index);
-
-                $row[] = [$colors['red'], $colors['green'], $colors['blue']];
-            }
-            $pixels[] = $row;
+        if (str_starts_with('image/', $this->content_type)) {
+            return 1;
+        } elseif (str_starts_with('audio/', $this->content_type)) {
+            return 2;
+        } elseif (str_starts_with('video/', $this->content_type)) {
+            return 3;
+        } else {
+            return 0; // unknown
         }
-
-        $components_x = 4;
-        $components_y = 3;
-        return Blurhash::encode($pixels, $components_x, $components_y);
     }
 
-    protected function originalPath(): string
+    protected function newPath(string $type): string
     {
-        $conf = $this->parent->getConfig();
+        if (!in_array($type, ['original', 'small'])) {
+            throw new \RuntimeException('Invalid type');
+        }
 
+        $conf = $this->parent->getConfig();
         return $conf->getInstanceDir() . '/' . $conf->getUserid() .
-            '/attachment/original/' .
+            '/attachment/' . $type . '/' .
             $this->id . '.' . $this->extension();
+    }
+
+    protected function newUrl(string $type): string
+    {
+        if (!in_array($type, ['original', 'small'])) {
+            throw new \RuntimeException('Invalid type');
+        }
+
+
+        $conf = $this->parent->getConfig();
+        return 'https://' . $conf->getInstance() . '/fileserver/' . $conf->getUserid() .
+            '/attachment/' . $type . '/' .
+            $this->id . '.' . $this->extension();
+    }
+
+    protected function copyFiles(): void
+    {
+        $conf = $this->parent->getConfig();;
+
+        foreach (['original', 'small'] as $type) {
+            $dst = $this->newPath($type);
+            $src = $type === 'original' ? $this->localFile : $this->thumbFile;
+            if (!$src) continue;
+
+            if ($conf->isDryrun()) {
+                $conf->getLogger()->info("copy file \n" . print_r(['src' => $src, 'dst' => $dst], true));
+            } else {
+                if (!file_exists(dirname($dst))) {
+                    mkdir(dirname($dst), 0755, true);
+                }
+                copy($src, $dst);
+            }
+        }
     }
 
     public function getId(): string

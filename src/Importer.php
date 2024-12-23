@@ -21,7 +21,7 @@ class Importer
             if (!in_array('https://www.w3.org/ns/activitystreams#Public', array_merge($item['to'], $item['cc']))) continue;
             foreach ($item['object']['tag'] as $tag) {
                 if ($tag['type'] === 'Mention') continue 2; // skip mentions
-                // FIXME theoretically we could keep them without creating an account and mention entry... would be simple links then
+                // FIXME theoretically we could keep them without creating an account and mention entry... would be simple links then?
             }
 
             $status = new Status($this->config, $item);

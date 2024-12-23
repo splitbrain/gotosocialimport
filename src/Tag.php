@@ -50,7 +50,7 @@ class Tag
             'status_id' => $this->parent->getId(),
             'tag_id' => $this->id,
         ];
-        $this->parent->getConfig()->getDatabase()->saveRecord('status_tags', $linkrecord);
+        $this->parent->getConfig()->getDatabase()->saveRecord('status_to_tags', $linkrecord);
     }
 
     public function getId(): string

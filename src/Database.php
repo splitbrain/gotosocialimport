@@ -8,14 +8,15 @@ use Psr\Log\LoggerInterface;
 class Database
 {
 
-    protected $pdo;
-    protected $dryrun = true;
+    protected PDO $pdo;
+    protected bool $dryrun = true;
     protected LoggerInterface $logger;
 
-    public function __construct(string $path, LoggerInterface $logger)
+    public function __construct(string $path, LoggerInterface $logger, bool $dryrun = true)
     {
 
         $this->logger = $logger;
+        $this->dryrun = $dryrun;
 
         $dsn = 'sqlite:' . $path;
         $this->pdo = new PDO($dsn);
@@ -66,14 +67,10 @@ class Database
         $values = array_values($data);
         $placeholders = array_pad([], count($columns), '?');
 
-
-
-
-
         if ($this->dryrun) {
             $this->logger->notice("creating record in $table:\n" . print_r($data, true));
         } else {
-            $sql = 'INSERT INTO "' . $table . '" (' . join(',', $columns) . ') VALUES (' . join(',', $placeholders) . ')';
+            $sql = 'INSERT OR IGNORE INTO "' . $table . '" (' . join(',', $columns) . ') VALUES (' . join(',', $placeholders) . ')';
             $stm = $this->pdo->prepare($sql);
             $stm->execute($values);
             $stm->closeCursor();
