@@ -43,6 +43,18 @@ class Database
         $this->pdo->rollBack();
     }
 
+    public function pdo(): PDO
+    {
+        return $this->pdo;
+    }
+
+    public function execute(string $sql, array $parameters = [])
+    {
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($parameters);
+        $stmt->closeCursor();
+    }
+
     /**
      * Query one single row
      */
