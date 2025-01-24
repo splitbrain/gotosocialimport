@@ -163,27 +163,33 @@ class Attachment
      */
     protected function gtsFileType(): int
     {
-        if (str_starts_with('image/', $this->content_type)) {
+        if (str_starts_with($this->content_type, 'image/')) {
             return 1;
-        } elseif (str_starts_with('audio/', $this->content_type)) {
+        } elseif (str_starts_with($this->content_type, 'audio/')) {
             return 2;
-        } elseif (str_starts_with('video/', $this->content_type)) {
+        } elseif (str_starts_with($this->content_type, 'video/')) {
             return 3;
         } else {
             return 0; // unknown
         }
     }
 
-    protected function newPath(string $type): string
+    protected function newPath(string $type, bool $fullPath = false): string
     {
         if (!in_array($type, ['original', 'small'])) {
             throw new \RuntimeException('Invalid type');
         }
 
         $conf = $this->parent->getConfig();
-        return $conf->getInstanceDir() . '/' . $conf->getUserid() .
+        $path = $conf->getUserid() .
             '/attachment/' . $type . '/' .
             $this->id . '.' . $this->extension();
+
+        if ($fullPath) {
+            $path = $conf->getInstanceDir() . '/' . $path;
+        }
+
+        return $path;
     }
 
     protected function newUrl(string $type): string
@@ -194,7 +200,7 @@ class Attachment
 
 
         $conf = $this->parent->getConfig();
-        return 'https://' . $conf->getInstance() . '/fileserver/' . $conf->getUserid() .
+        return $conf->getProto() . '://' . $conf->getInstance() . '/fileserver/' . $conf->getUserid() .
             '/attachment/' . $type . '/' .
             $this->id . '.' . $this->extension();
     }
@@ -204,7 +210,7 @@ class Attachment
         $conf = $this->parent->getConfig();;
 
         foreach (['original', 'small'] as $type) {
-            $dst = $this->newPath($type);
+            $dst = $this->newPath($type, true);
             $src = $type === 'original' ? $this->localFile : $this->thumbFile;
             if (!$src) continue;
 

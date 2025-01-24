@@ -17,7 +17,7 @@ class Tag
         $this->name = ltrim($data['name'], '#');
 
         $href = $data['href']; // old URL
-        $url = 'https://' . $this->parent->getConfig()->getInstance() . '/tags/' . $this->name; // new URL
+        $url = $parent->getConfig()->getProto() . '://' . $this->parent->getConfig()->getInstance() . '/tags/' . $this->name; // new URL
 
         // update the URL in the status' content
         $content = $this->parent->getContent();

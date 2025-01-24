@@ -19,6 +19,7 @@ class Config
     protected LoggerInterface $logger;
     protected Ulid $ulid;
     protected bool $dryrun = true;
+    protected bool $http;
 
 
     public function __construct(
@@ -26,12 +27,14 @@ class Config
         string          $instanceDir,
         string          $account,
         LoggerInterface $logger,
-        bool            $dryrun = true
+        bool            $dryrun = true,
+        bool            $usehttp = false
     )
     {
         $this->ulid = new Ulid();
         $this->logger = $logger;
         $this->dryrun = $dryrun;
+        $this->http = $usehttp;
 
         $this->initInstanceDir($instanceDir);
         $this->initMastodonDir($mastodonDir);
@@ -96,6 +99,11 @@ class Config
     public function getUlid(): Ulid
     {
         return $this->ulid;
+    }
+
+    public function getProto()
+    {
+        return $this->http ? 'http' : 'https';
     }
 
     /**

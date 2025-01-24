@@ -17,6 +17,7 @@ class Cli extends PSR3CLIv3
         $options->registerArgument('account', 'The account to import into');
 
         $options->registerOption('really', 'Actually do the import, without this option only a dryrun is done');
+        $options->registerOption('http', 'Use HTTP instead of HTTPS for media URLs (useful for local testing)');
     }
 
     protected function main(Options $options)
@@ -26,7 +27,8 @@ class Cli extends PSR3CLIv3
             $options->getArgs()[1],
             $options->getArgs()[2],
             $this,
-            !$options->getOpt('really')
+            !$options->getOpt('really'),
+            $options->getOpt('http')
         );
 
         if ($config->isDryrun()) {
