@@ -58,4 +58,21 @@ class Thread
     {
         return $this->id;
     }
+
+    /**
+     * Get another status in the same thread
+     *
+     * @param string $origin
+     * @return Status|null
+     */
+    public function getOtherStatus(string $origin): ?Status
+    {
+        foreach ($this->statuses as $status) {
+            if ($status->getOrigin() === $origin) {
+                return $status;
+            }
+        }
+
+        return null;
+    }
 }
