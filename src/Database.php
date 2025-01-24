@@ -23,7 +23,7 @@ class Database
         $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $this->pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
         // set WAL journal mode
-        $this->pdo->exec('PRAGMA journal_mode = WAL;');
+        #$this->pdo->exec('PRAGMA journal_mode = WAL;');
         // enable foreign key constraints
         $this->pdo->exec('PRAGMA foreign_keys = ON;');
     }
