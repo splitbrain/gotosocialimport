@@ -28,15 +28,17 @@ class Importer
             $status->save();
         }
 
-        // update account statistics
-        $sql = 'UPDATE account_stats SET statuses_count = (SELECT COUNT(*) FROM statuses WHERE account_id = ?) WHERE account_id = ?';
-        $this->config->getDatabase()->execute($sql, [$this->config->getUserid(), $this->config->getUserid()]);
-        $sql = 'UPDATE account_stats SET last_status_at = (SELECT MAX(created_at) FROM statuses WHERE account_id = ?) WHERE account_id = ?';
-        $this->config->getDatabase()->execute($sql, [$this->config->getUserid(), $this->config->getUserid()]);
+        if(!$this->config->isDryrun()) {
+            // update account statistics
+            $sql = 'UPDATE account_stats SET statuses_count = (SELECT COUNT(*) FROM statuses WHERE account_id = ?) WHERE account_id = ?';
+            $this->config->getDatabase()->execute($sql, [$this->config->getUserid(), $this->config->getUserid()]);
+            $sql = 'UPDATE account_stats SET last_status_at = (SELECT MAX(created_at) FROM statuses WHERE account_id = ?) WHERE account_id = ?';
+            $this->config->getDatabase()->execute($sql, [$this->config->getUserid(), $this->config->getUserid()]);
 
-        // update join date
-        $sql = 'UPDATE accounts SET created_at = (SELECT MIN(created_at) FROM statuses WHERE account_id = ?) WHERE id = ?';
-        $this->config->getDatabase()->execute($sql, [$this->config->getUserid(), $this->config->getUserid()]);
+            // update join date
+            $sql = 'UPDATE accounts SET created_at = (SELECT MIN(created_at) FROM statuses WHERE account_id = ?) WHERE id = ?';
+            $this->config->getDatabase()->execute($sql, [$this->config->getUserid(), $this->config->getUserid()]);
+        }
     }
 
 }
